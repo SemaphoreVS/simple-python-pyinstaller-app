@@ -5,9 +5,47 @@ agent:
     type: e1-standard-2
     os_image: ubuntu2004
 blocks:
-  - name: 'Block #1'
+  - name: Build
     task:
       jobs:
-        - name: 'Job #1'
+        - name: Build
           commands:
-            - checkout
+            - python --version
+            - python -m py_compile sources/add2vals.py sources/calc.py
+      prologue:
+        commands:
+          - checkout
+    dependencies: []
+  - name: Test
+    dependencies:
+      - Build
+    task:
+      epilogue:
+        on_pass:
+          commands:
+            - junit test-reports/results.xml
+      jobs:
+        - name: Test
+          commands:
+            - py.test --verbose --junit-xml test-reports/results.xml sources/test_calc.py
+      prologue:
+        commands:
+          - checkout
+          - sudo apt install python-pytest -y
+          - sudo apt install junit -y
+  - name: Deliver
+    dependencies:
+      - Test
+    task:
+      epilogue:
+        on_pass:
+          commands:
+            - archiveArtifacts 'dist/add2vals'
+      jobs:
+        - name: Deliver
+          commands:
+            - python -m PyInstaller --onefile sources/add2vals.py
+      prologue:
+        commands:
+          - checkout
+          - sudo pip install pyinstaller
